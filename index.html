@@ -65,18 +65,14 @@
   └──────────────────────────────────────────────────────────────┘
 -->
 <script>
-  var ID_APP  = 'AKfycbzNWnsuZ-VQkKfQf3tnPH39thhDbG1PmBGYP9Q7ttcli0ufLELzASr6n3KtJy1MeOJ9Rw';
-  var ACCOUNT = 'elitesalafeste@gmail.com';
+  var ID_APP = 'AKfycbzNWnsuZ-VQkKfQf3tnPH39thhDbG1PmBGYP9Q7ttcli0ufLELzASr6n3KtJy1MeOJ9Rw';
 
-  // Se il telefono ha più account Google, quello giusto va indicato: senza,
-  // Google risponde "Impossibile aprire il file in questo momento", che è un
-  // accesso negato travestito da guasto.
-  function urlApp(indice) {
-    var base = 'https://script.google.com';
-    if (indice === null || indice === undefined) {
-      return base + '/macros/s/' + ID_APP + '/exec?authuser=' + encodeURIComponent(ACCOUNT);
-    }
-    return base + '/u/' + indice + '/macros/s/' + ID_APP + '/exec';
+  // L'indirizzo va lasciato pulito: l'app non chiede più l'account Google,
+  // si protegge da sola con il codice di accesso. Qualsiasi parametro che
+  // nomini un account (authuser, /u/N/) fa fallire l'apertura sui telefoni
+  // dove quell'account non è disponibile.
+  function urlApp() {
+    return 'https://script.google.com/macros/s/' + ID_APP + '/exec';
   }
 </script>
 
@@ -98,20 +94,17 @@
 
 <div class="schermata nascosto" id="problema">
   <img src="icona-192.png" alt="">
-  <h1>Account sbagliato?</h1>
+  <h1>Non riesco ad aprire l'app</h1>
   <p>
-    Se vedi «Impossibile aprire il file», il telefono sta usando un altro
-    account Google. Prova questi, uno alla volta: quello giusto è
-    <b id="emailAccount"></b>. La scelta resta memorizzata.
+    Controlla la connessione e riprova. Se il problema continua,
+    puoi aprire l'app nel browser.
   </p>
-  <div id="scelte" style="display:flex; flex-direction:column; gap:10px; width:100%; max-width:280px"></div>
+  <button onclick="location.reload()">Riprova</button>
   <a id="linkDiretto" href="#" target="_blank" rel="noopener"
      style="background:transparent; color:#fff; text-decoration:underline; font-weight:400; font-size:13px">
-    Aprire fuori dall'app
+    Aprire nel browser
   </a>
 </div>
-
-<button id="cambiaAccount" title="Cambia account">⚙</button>
 
 <iframe id="app" class="nascosto" title="Sala Feste"
         allow="clipboard-write; geolocation"
@@ -122,7 +115,6 @@
   var avvio = document.getElementById('avvio');
   var problema = document.getElementById('problema');
   var iframe = document.getElementById('app');
-  var ingranaggio = document.getElementById('cambiaAccount');
 
   if (!ID_APP) {
     avvio.classList.add('nascosto');
@@ -130,58 +122,27 @@
     return;
   }
 
-  document.getElementById('emailAccount').textContent = ACCOUNT;
+  // Ripulisce la scelta account delle versioni precedenti: non serve più e,
+  // se restasse, continuerebbe a puntare a un indirizzo con /u/N/.
+  try { localStorage.removeItem('salafeste.account'); } catch (e) {}
 
-  function ricorda(v) { try { localStorage.setItem('salafeste.account', String(v)); } catch (e) {} }
-  function ricordato() {
-    try {
-      var v = localStorage.getItem('salafeste.account');
-      return (v === null || v === 'auto') ? null : Number(v);
-    } catch (e) { return null; }
-  }
-
-  function carica(indice) {
-    var url = urlApp(indice);
-    document.getElementById('linkDiretto').href = url;
-    problema.classList.add('nascosto');
-    avvio.classList.remove('nascosto');
-    iframe.classList.add('nascosto');
-    iframe.src = url;
-  }
-
-  // I pulsanti di scelta: "predefinito" usa authuser, gli altri i profili
-  // numerati del browser, perché l'ordine degli account cambia da telefono
-  // a telefono e non c'è modo di indovinarlo da qui.
-  var scelte = document.getElementById('scelte');
-  [['Account predefinito', null], ['Primo account', 0], ['Secondo account', 1], ['Terzo account', 2]]
-    .forEach(function (v) {
-      var b = document.createElement('button');
-      b.textContent = v[0];
-      b.onclick = function () { ricorda(v[1] === null ? 'auto' : v[1]); carica(v[1]); };
-      scelte.appendChild(b);
-    });
-
-  ingranaggio.onclick = function () {
-    iframe.classList.add('nascosto');
-    avvio.classList.add('nascosto');
-    problema.classList.remove('nascosto');
-  };
+  var url = urlApp();
+  document.getElementById('linkDiretto').href = url;
 
   var aperta = false;
   iframe.addEventListener('load', function () {
     aperta = true;
     iframe.classList.remove('nascosto');
     avvio.classList.add('nascosto');
-    ingranaggio.style.display = 'block';
   });
 
   setTimeout(function () {
     if (aperta) return;
     avvio.classList.add('nascosto');
     problema.classList.remove('nascosto');
-  }, 12000);
+  }, 15000);
 
-  carica(ricordato());
+  iframe.src = url;
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(function () { /* non è grave */ });
