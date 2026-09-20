@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Sala Feste</title>
+
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1e6b41">
+
+<!-- iPhone: senza questi non si apre a schermo pieno -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sala Feste">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #1e6b41;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  iframe {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    border: 0; display: block; background: #f5f6f7;
+  }
+  .schermata {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; padding: 32px; text-align: center; color: #fff; background: #1e6b41;
+  }
+  .schermata img { width: 88px; height: 88px; border-radius: 20px; }
+  .schermata h1 { font-size: 20px; margin: 0; font-weight: 600; }
+  .schermata p { margin: 0; font-size: 14px; line-height: 1.5; opacity: .9; max-width: 320px; }
+  .schermata a, .schermata button {
+    background: #fff; color: #1e6b41; border: 0; border-radius: 10px;
+    padding: 13px 22px; font-size: 15px; font-weight: 600; font-family: inherit;
+    text-decoration: none; cursor: pointer;
+  }
+  .schermata code {
+    display: block; background: rgba(0,0,0,.25); padding: 10px 12px; border-radius: 8px;
+    font-size: 12px; word-break: break-all; margin-top: 4px;
+  }
+  .nascosto { display: none !important; }
+  .puntini::after {
+    content: '…'; display: inline-block; width: 1em; text-align: left;
+    animation: punti 1.2s steps(4, end) infinite;
+  }
+  @keyframes punti { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '…'; } }
+</style>
+</head>
+<body>
+
+<!--
+  ┌──────────────────────────────────────────────────────────────┐
+  │  INCOLLA QUI L'INDIRIZZO DELLA WEB APP                        │
+  │  Lo trovi in Apps Script → Distribuisci → Gestisci            │
+  │  distribuzioni. Finisce per /exec                             │
+  └──────────────────────────────────────────────────────────────┘
+-->
+<script>
+  var URL_APP = 'https://script.google.com/macros/s/AKfycbzNWnsuZ-VQkKfQf3tnPH39thhDbG1PmBGYP9Q7ttcli0ufLELzASr6n3KtJy1MeOJ9Rw/exec';
+</script>
+
+<div class="schermata" id="avvio">
+  <img src="icona-192.png" alt="">
+  <h1>Sala Feste</h1>
+  <p class="puntini">Apertura in corso</p>
+</div>
+
+<div class="schermata nascosto" id="daConfigurare">
+  <img src="icona-192.png" alt="">
+  <h1>Manca un passaggio</h1>
+  <p>
+    Apri il file <b>index.html</b> e incolla l'indirizzo della web app
+    nella riga <b>var URL_APP</b>.
+    <code>https://script.google.com/macros/s/…/exec</code>
+  </p>
+</div>
+
+<div class="schermata nascosto" id="problema">
+  <img src="icona-192.png" alt="">
+  <h1>L'app non si apre qui</h1>
+  <p>
+    Di solito succede quando il browser blocca i contenuti incorporati,
+    oppure non hai ancora fatto l'accesso con il tuo account Google.
+  </p>
+  <a id="linkDiretto" href="#" target="_blank" rel="noopener">Apri l'app</a>
+</div>
+
+<iframe id="app" class="nascosto" title="Sala Feste"
+        allow="clipboard-write; geolocation"
+        referrerpolicy="no-referrer-when-downgrade"></iframe>
+
+<script>
+(function () {
+  var avvio = document.getElementById('avvio');
+  var problema = document.getElementById('problema');
+  var iframe = document.getElementById('app');
+
+  if (!URL_APP) {
+    avvio.classList.add('nascosto');
+    document.getElementById('daConfigurare').classList.remove('nascosto');
+    return;
+  }
+
+  document.getElementById('linkDiretto').href = URL_APP;
+
+  var aperta = false;
+  iframe.addEventListener('load', function () {
+    aperta = true;
+    iframe.classList.remove('nascosto');
+    avvio.classList.add('nascosto');
+  });
+
+  // Se dopo 12 secondi non si è caricato nulla, meglio dirlo che lasciare
+  // il socio davanti a una schermata che gira a vuoto.
+  setTimeout(function () {
+    if (aperta) return;
+    avvio.classList.add('nascosto');
+    problema.classList.remove('nascosto');
+  }, 12000);
+
+  iframe.src = URL_APP;
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(function () { /* non è grave */ });
+  }
+})();
+</script>
+
+</body>
+</html>

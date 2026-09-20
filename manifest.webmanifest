@@ -1,0 +1,17 @@
+{
+  "name": "Sala Feste",
+  "short_name": "Sala Feste",
+  "description": "Prenotazioni e calendario della sala feste",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1e6b41",
+  "theme_color": "#1e6b41",
+  "lang": "it",
+  "icons": [
+    { "src": "icona-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icona-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icona-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
