@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "it.elitesalafeste.app",
+      "sha256_cert_fingerprints": ["6C:7A:76:48:45:C4:F7:E4:C8:74:31:22:D9:EF:8C:DD:78:BF:A5:7F:5A:9B:66:BC:7C:FE:C1:10:26:D3:53:BA"]
+    }
+  }
+]
