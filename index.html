@@ -42,6 +42,12 @@
     font-size: 12px; word-break: break-all; margin-top: 4px;
   }
   .nascosto { display: none !important; }
+  #cambiaAccount {
+    position: fixed; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); z-index: 20;
+    width: 34px; height: 34px; border-radius: 50%; border: 0; cursor: pointer;
+    background: rgba(30,107,65,.75); color: #fff; font-size: 15px; line-height: 1;
+    display: none;
+  }
   .puntini::after {
     content: '…'; display: inline-block; width: 1em; text-align: left;
     animation: punti 1.2s steps(4, end) infinite;
@@ -59,7 +65,19 @@
   └──────────────────────────────────────────────────────────────┘
 -->
 <script>
-  var URL_APP = 'https://script.google.com/macros/s/AKfycbzNWnsuZ-VQkKfQf3tnPH39thhDbG1PmBGYP9Q7ttcli0ufLELzASr6n3KtJy1MeOJ9Rw/exec';
+  var ID_APP  = 'AKfycbzNWnsuZ-VQkKfQf3tnPH39thhDbG1PmBGYP9Q7ttcli0ufLELzASr6n3KtJy1MeOJ9Rw';
+  var ACCOUNT = 'elitesalafeste@gmail.com';
+
+  // Se il telefono ha più account Google, quello giusto va indicato: senza,
+  // Google risponde "Impossibile aprire il file in questo momento", che è un
+  // accesso negato travestito da guasto.
+  function urlApp(indice) {
+    var base = 'https://script.google.com';
+    if (indice === null || indice === undefined) {
+      return base + '/macros/s/' + ID_APP + '/exec?authuser=' + encodeURIComponent(ACCOUNT);
+    }
+    return base + '/u/' + indice + '/macros/s/' + ID_APP + '/exec';
+  }
 </script>
 
 <div class="schermata" id="avvio">
@@ -73,20 +91,27 @@
   <h1>Manca un passaggio</h1>
   <p>
     Apri il file <b>index.html</b> e incolla l'indirizzo della web app
-    nella riga <b>var URL_APP</b>.
+    nella riga <b>var ID_APP</b>.
     <code>https://script.google.com/macros/s/…/exec</code>
   </p>
 </div>
 
 <div class="schermata nascosto" id="problema">
   <img src="icona-192.png" alt="">
-  <h1>L'app non si apre qui</h1>
+  <h1>Account sbagliato?</h1>
   <p>
-    Di solito succede quando il browser blocca i contenuti incorporati,
-    oppure non hai ancora fatto l'accesso con il tuo account Google.
+    Se vedi «Impossibile aprire il file», il telefono sta usando un altro
+    account Google. Prova questi, uno alla volta: quello giusto è
+    <b id="emailAccount"></b>. La scelta resta memorizzata.
   </p>
-  <a id="linkDiretto" href="#" target="_blank" rel="noopener">Apri l'app</a>
+  <div id="scelte" style="display:flex; flex-direction:column; gap:10px; width:100%; max-width:280px"></div>
+  <a id="linkDiretto" href="#" target="_blank" rel="noopener"
+     style="background:transparent; color:#fff; text-decoration:underline; font-weight:400; font-size:13px">
+    Aprire fuori dall'app
+  </a>
 </div>
+
+<button id="cambiaAccount" title="Cambia account">⚙</button>
 
 <iframe id="app" class="nascosto" title="Sala Feste"
         allow="clipboard-write; geolocation"
@@ -97,31 +122,66 @@
   var avvio = document.getElementById('avvio');
   var problema = document.getElementById('problema');
   var iframe = document.getElementById('app');
+  var ingranaggio = document.getElementById('cambiaAccount');
 
-  if (!URL_APP) {
+  if (!ID_APP) {
     avvio.classList.add('nascosto');
     document.getElementById('daConfigurare').classList.remove('nascosto');
     return;
   }
 
-  document.getElementById('linkDiretto').href = URL_APP;
+  document.getElementById('emailAccount').textContent = ACCOUNT;
+
+  function ricorda(v) { try { localStorage.setItem('salafeste.account', String(v)); } catch (e) {} }
+  function ricordato() {
+    try {
+      var v = localStorage.getItem('salafeste.account');
+      return (v === null || v === 'auto') ? null : Number(v);
+    } catch (e) { return null; }
+  }
+
+  function carica(indice) {
+    var url = urlApp(indice);
+    document.getElementById('linkDiretto').href = url;
+    problema.classList.add('nascosto');
+    avvio.classList.remove('nascosto');
+    iframe.classList.add('nascosto');
+    iframe.src = url;
+  }
+
+  // I pulsanti di scelta: "predefinito" usa authuser, gli altri i profili
+  // numerati del browser, perché l'ordine degli account cambia da telefono
+  // a telefono e non c'è modo di indovinarlo da qui.
+  var scelte = document.getElementById('scelte');
+  [['Account predefinito', null], ['Primo account', 0], ['Secondo account', 1], ['Terzo account', 2]]
+    .forEach(function (v) {
+      var b = document.createElement('button');
+      b.textContent = v[0];
+      b.onclick = function () { ricorda(v[1] === null ? 'auto' : v[1]); carica(v[1]); };
+      scelte.appendChild(b);
+    });
+
+  ingranaggio.onclick = function () {
+    iframe.classList.add('nascosto');
+    avvio.classList.add('nascosto');
+    problema.classList.remove('nascosto');
+  };
 
   var aperta = false;
   iframe.addEventListener('load', function () {
     aperta = true;
     iframe.classList.remove('nascosto');
     avvio.classList.add('nascosto');
+    ingranaggio.style.display = 'block';
   });
 
-  // Se dopo 12 secondi non si è caricato nulla, meglio dirlo che lasciare
-  // il socio davanti a una schermata che gira a vuoto.
   setTimeout(function () {
     if (aperta) return;
     avvio.classList.add('nascosto');
     problema.classList.remove('nascosto');
   }, 12000);
 
-  iframe.src = URL_APP;
+  carica(ricordato());
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(function () { /* non è grave */ });
