@@ -106,8 +106,14 @@
   </a>
 </div>
 
+<!--
+  Quello che l'app puo' fare qui dentro lo decide questo elenco: un iframe di
+  un'altra origine non eredita nulla per conto suo. Senza "web-share" il
+  pulsante che manda l'impegno privato al Calendario del telefono non
+  funzionerebbe nell'app installata, pur funzionando nel browser.
+-->
 <iframe id="app" class="nascosto" title="Sala Feste"
-        allow="clipboard-write; geolocation"
+        allow="web-share; clipboard-write; clipboard-read; downloads; fullscreen; geolocation"
         referrerpolicy="no-referrer-when-downgrade"></iframe>
 
 <script>

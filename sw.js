@@ -3,7 +3,7 @@
  * subito il guscio anche con rete lenta. Non mette in cache i dati delle
  * prenotazioni, che devono sempre arrivare aggiornati dal foglio.
  */
-const CACHE = 'salafeste-guscio-v1';
+const CACHE = 'salafeste-guscio-v2';
 const GUSCIO = [
   './',
   './index.html',
