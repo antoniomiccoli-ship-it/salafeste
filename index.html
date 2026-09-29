@@ -92,6 +92,33 @@
   </p>
 </div>
 
+<div class="schermata nascosto" id="proponiImpronta">
+  <img src="icona-192.png" alt="">
+  <h1>Vuoi usare l'impronta?</h1>
+  <p>
+    Chi prende il telefono gi&agrave; sbloccato non potr&agrave; aprire le
+    prenotazioni senza il tuo dito.
+    <br><br>
+    Puoi decidere adesso: la scelta resta su questo telefono.
+  </p>
+  <button onclick="attivaImpronta()">Attiva l'impronta</button>
+  <button onclick="rinunciaImpronta()"
+          style="background:transparent; color:#fff; border:1px solid rgba(255,255,255,.5)">
+    Non adesso
+  </button>
+</div>
+
+<div class="schermata nascosto" id="sblocco">
+  <img src="icona-192.png" alt="">
+  <h1>Sala Feste</h1>
+  <p id="sbloccoTesto">Appoggia il dito per aprire le prenotazioni.</p>
+  <button onclick="sblocca()">Sblocca</button>
+  <p style="font-size:12px; opacity:.75">
+    Se cambi telefono o l'impronta non funziona pi&ugrave;, reinstalla l'app:
+    ripartir&agrave; senza richiederla.
+  </p>
+</div>
+
 <div class="schermata nascosto" id="problema">
   <img src="icona-192.png" alt="">
   <h1>Non riesco ad aprire l'app</h1>
@@ -117,6 +144,122 @@
         referrerpolicy="no-referrer-when-downgrade"></iframe>
 
 <script>
+/* ---------------------------- Impronta ----------------------------------
+
+   Non e' una cassaforte: la chiave vera dell'app resta il codice personale.
+   Serve a impedire che chi ha in mano il telefono sbloccato apra le
+   prenotazioni con un tocco. Vale per l'app installata e per l'apk, che
+   passano da qui; chi apre il link nel browser non passa da questo guscio.
+-------------------------------------------------------------------------- */
+
+var CHIAVE_IMPRONTA = 'salafeste.impronta';
+var CHIAVE_RINUNCIA = 'salafeste.senzaImpronta';
+
+function leggi(chiave) {
+  try { return localStorage.getItem(chiave); } catch (e) { return null; }
+}
+
+function scrivi(chiave, valore) {
+  try { localStorage.setItem(chiave, valore); } catch (e) {}
+}
+
+function daBase64(t) {
+  var g = atob(t.replace(/-/g, '+').replace(/_/g, '/'));
+  var b = new Uint8Array(g.length);
+  for (var i = 0; i < g.length; i++) b[i] = g.charCodeAt(i);
+  return b;
+}
+
+function aBase64(buf) {
+  var b = new Uint8Array(buf), t = '';
+  for (var i = 0; i < b.length; i++) t += String.fromCharCode(b[i]);
+  return btoa(t);
+}
+
+function casuale(quanti) {
+  var b = new Uint8Array(quanti);
+  crypto.getRandomValues(b);
+  return b;
+}
+
+function schermata(id) {
+  ['avvio', 'proponiImpronta', 'sblocco', 'problema', 'daConfigurare'].forEach(function (x) {
+    document.getElementById(x).classList.toggle('nascosto', x !== id);
+  });
+}
+
+function impDisponibile() {
+  if (!window.PublicKeyCredential ||
+      !PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
+    return Promise.resolve(false);
+  }
+  return PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+      .catch(function () { return false; });
+}
+
+function attivaImpronta() {
+  navigator.credentials.create({
+    publicKey: {
+      challenge: casuale(32),
+      rp: { name: 'Sala Feste' },
+      user: { id: casuale(16), name: 'socio', displayName: 'Socio' },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: {
+        authenticatorAttachment: 'platform',
+        userVerification: 'required',
+        residentKey: 'preferred'
+      },
+      timeout: 60000,
+      attestation: 'none'
+    }
+  }).then(function (cred) {
+    scrivi(CHIAVE_IMPRONTA, aBase64(cred.rawId));
+    apriApp();
+  }).catch(function () {
+    // Rifiutata o non riuscita: non ha senso insistere, si entra lo stesso.
+    document.getElementById('sbloccoTesto').textContent =
+        'Non sono riuscito a registrare l\u2019impronta.';
+    rinunciaImpronta();
+  });
+}
+
+function rinunciaImpronta() {
+  scrivi(CHIAVE_RINUNCIA, 'si');
+  apriApp();
+}
+
+function sblocca() {
+  var id = leggi(CHIAVE_IMPRONTA);
+  if (!id) { apriApp(); return; }
+  navigator.credentials.get({
+    publicKey: {
+      challenge: casuale(32),
+      allowCredentials: [{ type: 'public-key', id: daBase64(id) }],
+      userVerification: 'required',
+      timeout: 60000
+    }
+  }).then(function () {
+    apriApp();
+  }).catch(function () {
+    document.getElementById('sbloccoTesto').textContent =
+        'Non ti ho riconosciuto. Prova di nuovo.';
+  });
+}
+
+function guardia() {
+  if (leggi(CHIAVE_IMPRONTA)) {
+    schermata('sblocco');
+    sblocca();               // molti telefoni la chiedono subito, senza toccare
+    return;
+  }
+  if (leggi(CHIAVE_RINUNCIA)) { apriApp(); return; }
+
+  impDisponibile().then(function (si) {
+    if (si) schermata('proponiImpronta');
+    else apriApp();
+  });
+}
+
 (function () {
   var avvio = document.getElementById('avvio');
   var problema = document.getElementById('problema');
@@ -139,20 +282,26 @@
   iframe.addEventListener('load', function () {
     aperta = true;
     iframe.classList.remove('nascosto');
-    avvio.classList.add('nascosto');
+    schermata('');
   });
 
-  setTimeout(function () {
-    if (aperta) return;
-    avvio.classList.add('nascosto');
-    problema.classList.remove('nascosto');
-  }, 15000);
-
-  iframe.src = url;
+  // L'app parte solo dopo il controllo: prima di allora l'iframe resta vuoto,
+  // quindi non c'e' niente da leggere per chi non ha superato l'impronta.
+  window.apriApp = function () {
+    schermata('avvio');
+    setTimeout(function () {
+      if (aperta) return;
+      document.getElementById('avvio').classList.add('nascosto');
+      problema.classList.remove('nascosto');
+    }, 15000);
+    iframe.src = url;
+  };
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(function () { /* non è grave */ });
   }
+
+  guardia();
 })();
 </script>
 
